@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct AppConfig {
-    database_url: String,
-    api_key: String,
-    log_level: String,
+    pub database_url: String,
+    pub api_key: String,
+    pub log_level: String,
 }
 
 /// The application configuration is loaded from the config/local.toml file or the environment.
