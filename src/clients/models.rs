@@ -119,7 +119,8 @@ impl ClientRepo for PostgresRepo {
     }
 
     async fn add_vendor_to_client(&self, client_id: i64, vendor: Vendor) -> Result<i64, AppError> {
-        let client_exists = sqlx::query!("SELECT 1 FROM clients WHERE id = $1", client_id)
+        // For some reason sqlx doesn't like SELECT 1.
+        let client_exists: bool = sqlx::query!("SELECT * FROM clients WHERE id = $1", client_id)
             .fetch_optional(&self.pool)
             .await?
             .is_some();
@@ -132,10 +133,10 @@ impl ClientRepo for PostgresRepo {
         }
 
         let vendor_id = sqlx::query!(
-            "INSERT INTO vendors (client_id, name, url) VALUES ($1, $2, $3) RETURNING id",
+            "INSERT INTO vendors (client_id, name, email) VALUES ($1, $2, $3) RETURNING id",
             client_id,
             vendor.name,
-            vendor.url
+            vendor.email,
         )
         .fetch_one(&self.pool)
         .await?
@@ -151,9 +152,9 @@ impl ClientRepo for PostgresRepo {
         vendor: Vendor,
     ) -> Result<(), AppError> {
         let rows_affected = sqlx::query!(
-            "UPDATE vendors SET name = $1, url = $2 WHERE client_id = $3 AND id = $4",
+            "UPDATE vendors SET name = $1, email = $2 WHERE client_id = $3 AND id = $4",
             vendor.name,
-            vendor.url,
+            vendor.email,
             client_id,
             vendor_id
         )

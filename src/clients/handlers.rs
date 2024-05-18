@@ -1,50 +1,13 @@
-use std::collections::HashMap;
-
-use crate::{errors::models::AppError, vendors::models::Vendor};
-
 use super::models::{Client, ClientRepo};
+use crate::{errors::models::AppError, vendors::models::Vendor};
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use std::collections::HashMap;
 
 /// The get clients endpoint handler. Returns a list of all clients as JSON.
-pub async fn get_clients<T: ClientRepo>(State(state): State<T>) -> Json<Vec<Client>> {
-    let clients = state.get_all().await;
-    Json(clients)
-}
-
-pub async fn create_client<T: ClientRepo>(
-    State(state): State<T>,
-    Json(client): Json<Client>,
-) -> Json<i64> {
-    let id = state.create(client).await;
-    Json(id)
-}
-
-pub async fn get_client<T: ClientRepo>(
-    Path(id): Path<i64>,
-    State(state): State<T>,
-) -> Json<Option<Client>> {
-    let client = state.get(id).await;
-    client
-}
-
-pub async fn delete_client<T: ClientRepo>(Path(id): Path<i64>, State(state): State<T>) -> Json<()> {
-    state.delete(id).await;
-    Json(())
-}
-
-pub async fn update_client<T: ClientRepo>(
-    State(state): State<T>,
-    Path(id): Path<i64>,
-    Json(client): Json<Client>,
-) -> Json<()> {
-    state.update(id, client).await;
-    Json(())
-}
-
-async fn get_all_clients<T: ClientRepo>(
+pub async fn get_clients<T: ClientRepo>(
     State(repo): State<T>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<Client>>, AppError> {
@@ -55,7 +18,54 @@ async fn get_all_clients<T: ClientRepo>(
     Ok(Json(clients))
 }
 
-async fn update_vendor<T: ClientRepo>(
+pub async fn create_client<T: ClientRepo>(
+    State(repo): State<T>,
+    Json(client): Json<Client>,
+) -> Result<Json<i64>, AppError> {
+    let client_id = repo.create(client).await?;
+    Ok(Json(client_id))
+}
+
+pub async fn get_client<T: ClientRepo>(
+    State(repo): State<T>,
+    Path(id): Path<i64>,
+) -> Result<Json<Client>, AppError> {
+    match repo.get(id).await? {
+        Some(client) => Ok(Json(client)),
+        None => Err(AppError::NotFound(format!(
+            "Client with id {} not found",
+            id
+        ))),
+    }
+}
+
+pub async fn update_client<T: ClientRepo>(
+    State(repo): State<T>,
+    Path(id): Path<i64>,
+    Json(client): Json<Client>,
+) -> Result<(), AppError> {
+    repo.update(id, client).await?;
+    Ok(())
+}
+
+pub async fn delete_client<T: ClientRepo>(
+    State(repo): State<T>,
+    Path(id): Path<i64>,
+) -> Result<(), AppError> {
+    repo.delete(id).await?;
+    Ok(())
+}
+
+pub async fn add_vendor_to_client<T: ClientRepo>(
+    State(repo): State<T>,
+    Path(client_id): Path<i64>,
+    Json(vendor): Json<Vendor>,
+) -> Result<Json<i64>, AppError> {
+    let vendor_id = repo.add_vendor_to_client(client_id, vendor).await?;
+    Ok(Json(vendor_id))
+}
+
+pub async fn update_vendor<T: ClientRepo>(
     State(repo): State<T>,
     Path((client_id, vendor_id)): Path<(i64, i64)>,
     Json(vendor): Json<Vendor>,

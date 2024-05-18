@@ -1,38 +1,48 @@
+use std::collections::HashMap;
+
+use crate::errors::models::AppError;
+
 use super::models::{Vendor, VendorRepo};
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::Json;
 
-pub async fn get_vendors<T: VendorRepo>(State(state): State<T>) -> Json<Vec<Vendor>> {
-    let vendors = state.get_all().await;
-    Json(vendors)
-}
+pub async fn get_vendors<T: VendorRepo>(
+    State(repo): State<T>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<Json<Vec<Vendor>>, AppError> {
+    let client_id_filter = params.get("client_id").and_then(|id| id.parse().ok());
+    let name_filter = params.get("name").cloned();
 
-pub async fn create_vendor<T: VendorRepo>(
-    State(state): State<T>,
-    Json(vendor): Json<Vendor>,
-) -> Json<i64> {
-    let id = state.create(vendor).await;
-    Json(id)
+    let vendors = repo.get_all(client_id_filter, name_filter).await?;
+    Ok(Json(vendors))
 }
 
 pub async fn get_vendor<T: VendorRepo>(
+    State(repo): State<T>,
     Path(id): Path<i64>,
-    State(state): State<T>,
-) -> Json<Option<Vendor>> {
-    let vendor = state.get(id).await;
-    Json(vendor)
-}
-
-pub async fn delete_vendor<T: VendorRepo>(Path(id): Path<i64>, State(state): State<T>) -> Json<()> {
-    state.delete(id).await;
-    Json(())
+) -> Result<Json<Vendor>, AppError> {
+    match repo.get(id).await? {
+        Some(vendor) => Ok(Json(vendor)),
+        None => Err(AppError::NotFound(format!(
+            "Vendor with id {} not found",
+            id
+        ))),
+    }
 }
 
 pub async fn update_vendor<T: VendorRepo>(
-    State(state): State<T>,
+    State(repo): State<T>,
     Path(id): Path<i64>,
     Json(vendor): Json<Vendor>,
-) -> Json<()> {
-    state.update(id, vendor).await;
-    Json(())
+) -> Result<(), AppError> {
+    repo.update(id, vendor).await?;
+    Ok(())
+}
+
+pub async fn delete_vendor<T: VendorRepo>(
+    State(repo): State<T>,
+    Path(id): Path<i64>,
+) -> Result<(), AppError> {
+    repo.delete(id).await?;
+    Ok(())
 }

@@ -1,6 +1,7 @@
 #![crate_name = "user_manager_api"]
 
 mod clients;
+mod errors;
 mod postgres;
 mod shutdown;
 mod vendors;
