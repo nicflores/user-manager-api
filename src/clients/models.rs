@@ -56,9 +56,10 @@ impl ClientRepo for PostgresRepo {
 
     async fn create(&self, client: Client) -> Result<i64, AppError> {
         let client_id = sqlx::query!(
-            "INSERT INTO clients (name, email) VALUES ($1, $2) RETURNING id",
+            "INSERT INTO clients (name, email, bucket) VALUES ($1, $2, $3) RETURNING id",
             client.name,
             client.email,
+            client.bucket,
         )
         .fetch_one(&self.pool)
         .await?
@@ -83,9 +84,10 @@ impl ClientRepo for PostgresRepo {
 
     async fn update(&self, id: i64, client: Client) -> Result<(), AppError> {
         let rows_affected = sqlx::query!(
-            "UPDATE clients SET name = $1, email = $2 WHERE id = $3",
+            "UPDATE clients SET name = $1, email = $2, bucket = $3 WHERE id = $4",
             client.name,
             client.email,
+            client.bucket,
             id
         )
         .execute(&self.pool)
@@ -175,7 +177,14 @@ impl ClientRepo for PostgresRepo {
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone, FromRow)]
 pub struct Client {
-    pub id: i64, // Use i64 to match Postgres BIGSERIAL
+    pub id: Option<i64>,
     pub name: String,
     pub email: String,
+    pub bucket: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone, FromRow)]
+pub struct ClientBucket {
+    pub id: i64,
+    pub bucket: String,
 }

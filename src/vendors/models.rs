@@ -22,7 +22,7 @@ impl VendorRepo for PostgresRepo {
         client_id: Option<i64>,
         name: Option<String>,
     ) -> Result<Vec<Vendor>, AppError> {
-        let mut query = "SELECT id, client_id, name, url FROM vendors".to_string();
+        let mut query = "SELECT * FROM vendors".to_string();
         let mut conditions = Vec::new();
 
         if let Some(client_id) = client_id {
@@ -42,6 +42,7 @@ impl VendorRepo for PostgresRepo {
             .fetch_all(&self.pool)
             .await?;
 
+        println!("Query: {}", query);
         Ok(vendors)
     }
 
@@ -97,7 +98,7 @@ impl VendorRepo for PostgresRepo {
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone, FromRow)]
 pub struct Vendor {
-    pub id: i64, // Use i64 to match Postgres BIGSERIAL
+    pub id: Option<i64>, // Use i64 to match Postgres BIGSERIAL
     pub client_id: i64,
     pub name: String,
     pub email: String,

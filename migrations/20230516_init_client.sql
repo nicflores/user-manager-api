@@ -2,7 +2,8 @@
 CREATE TABLE clients (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    email TEXT NOT NULL
+    email TEXT NOT NULL,
+    bucket TEXT NOT NULL
 );
 
 -- Create vendors table with a foreign key to clients

@@ -1,4 +1,5 @@
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
+use hyper::StatusCode;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -13,20 +14,13 @@ pub enum AppError {
     Unknown,
 }
 
-// Implement `IntoResponse` for `AppError` to convert it into a proper HTTP response
 impl IntoResponse for AppError {
-    fn into_response(self) -> axum::response::Response {
+    fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            AppError::DatabaseError(_) => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                self.to_string(),
-            ),
-            AppError::NotFound(_) => (axum::http::StatusCode::NOT_FOUND, self.to_string()),
-            AppError::InvalidInput(_) => (axum::http::StatusCode::BAD_REQUEST, self.to_string()),
-            AppError::Unknown => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                self.to_string(),
-            ),
+            AppError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            AppError::InvalidInput(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::Unknown => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 
         (status, error_message).into_response()
