@@ -10,7 +10,7 @@ pub trait VendorRepo: Send + Sync + Clone + 'static {
         client_id: Option<i64>,
         name: Option<String>,
     ) -> Result<Vec<Vendor>, AppError>;
-    async fn get(&self, id: i64) -> Result<Option<Vendor>, AppError>;
+    async fn get(&self, id: i64) -> Result<Option<VendorOverview>, AppError>;
     async fn update(&self, id: i64, vendor: Vendor) -> Result<(), AppError>;
     async fn delete(&self, id: i64) -> Result<(), AppError>;
 }
@@ -46,10 +46,10 @@ impl VendorRepo for PostgresRepo {
         Ok(vendors)
     }
 
-    async fn get(&self, id: i64) -> Result<Option<Vendor>, AppError> {
+    async fn get(&self, id: i64) -> Result<Option<VendorOverview>, AppError> {
         let vendor = sqlx::query_as!(
-            Vendor,
-            "SELECT id, client_id, name, email FROM vendors WHERE id = $1",
+            VendorOverview,
+            "SELECT id, client_id, name, host, port FROM vendors WHERE id = $1",
             id
         )
         .fetch_optional(&self.pool)
@@ -59,10 +59,24 @@ impl VendorRepo for PostgresRepo {
 
     async fn update(&self, id: i64, vendor: Vendor) -> Result<(), AppError> {
         let rows_affected = sqlx::query!(
-            "UPDATE vendors SET client_id = $1, name = $2, email = $3 WHERE id = $4",
+            "UPDATE vendors SET
+                client_id = $1,
+                name = $2,
+                host = $3,
+                port = $4,
+                username = $5,
+                password = $6,
+                ssh_key = $7,
+                ssh_key_password = $8
+             WHERE id = $9",
             vendor.client_id,
             vendor.name,
-            vendor.email,
+            vendor.host,
+            vendor.port,
+            vendor.username,
+            vendor.password,
+            vendor.ssh_key,
+            vendor.ssh_key_password,
             id
         )
         .execute(&self.pool)
@@ -101,5 +115,19 @@ pub struct Vendor {
     pub id: Option<i64>, // Use i64 to match Postgres BIGSERIAL
     pub client_id: i64,
     pub name: String,
-    pub email: String,
+    pub host: String,
+    pub port: i32,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub ssh_key: Option<String>,
+    pub ssh_key_password: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone, FromRow)]
+pub struct VendorOverview {
+    pub id: i64,
+    pub client_id: i64,
+    pub name: String,
+    pub host: String,
+    pub port: i32,
 }

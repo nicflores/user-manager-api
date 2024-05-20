@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod clients;
 pub mod config;
 pub mod errors;

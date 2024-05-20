@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::errors::models::AppError;
 
-use super::models::{Vendor, VendorRepo};
+use super::models::{Vendor, VendorOverview, VendorRepo};
 use axum::extract::{Path, Query, State};
 use axum::Json;
 
@@ -20,7 +20,7 @@ pub async fn get_vendors<T: VendorRepo>(
 pub async fn get_vendor<T: VendorRepo>(
     State(repo): State<T>,
     Path(id): Path<i64>,
-) -> Result<Json<Vendor>, AppError> {
+) -> Result<Json<VendorOverview>, AppError> {
     match repo.get(id).await? {
         Some(vendor) => Ok(Json(vendor)),
         None => Err(AppError::NotFound(format!(

@@ -129,8 +129,8 @@ impl ClientRepo for PostgresRepo {
     }
 
     async fn add_vendor(&self, client_id: i64, vendor: Vendor) -> Result<i64, AppError> {
-        // For some reason sqlx doesn't like SELECT 1.
-        let client_exists: bool = sqlx::query!("SELECT * FROM clients WHERE id = $1", client_id)
+        // Check if the client exists
+        let client_exists: bool = sqlx::query!("SELECT id FROM clients WHERE id = $1", client_id)
             .fetch_optional(&self.pool)
             .await?
             .is_some();
@@ -142,15 +142,21 @@ impl ClientRepo for PostgresRepo {
             )));
         }
 
+        // Insert Vendor
         let vendor_id = sqlx::query!(
-            "INSERT INTO vendors (client_id, name, email) VALUES ($1, $2, $3) RETURNING id",
-            client_id,
-            vendor.name,
-            vendor.email,
-        )
-        .fetch_one(&self.pool)
-        .await?
-        .id;
+                "INSERT INTO vendors (client_id, name, host, port, username, password, ssh_key, ssh_key_password) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+                client_id,
+                vendor.name,
+                vendor.host,
+                vendor.port,
+                vendor.username,
+                vendor.password,
+                vendor.ssh_key,
+                vendor.ssh_key_password
+            )
+            .fetch_one(&self.pool)
+            .await?
+            .id;
 
         Ok(vendor_id)
     }
@@ -162,9 +168,22 @@ impl ClientRepo for PostgresRepo {
         vendor: Vendor,
     ) -> Result<(), AppError> {
         let rows_affected = sqlx::query!(
-            "UPDATE vendors SET name = $1, email = $2 WHERE client_id = $3 AND id = $4",
+            "UPDATE vendors SET
+                name = $1,
+                host = $2,
+                port = $3,
+                username = $4,
+                password = $5,
+                ssh_key = $6,
+                ssh_key_password = $7
+             WHERE client_id = $8 AND id = $9",
             vendor.name,
-            vendor.email,
+            vendor.host,
+            vendor.port,
+            vendor.username,
+            vendor.password,
+            vendor.ssh_key,
+            vendor.ssh_key_password,
             client_id,
             vendor_id
         )
