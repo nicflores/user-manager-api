@@ -3,7 +3,9 @@
 mod clients;
 mod errors;
 mod postgres;
+mod sftp;
 mod shutdown;
+mod utils;
 mod vendors;
 
 use crate::postgres::pool::PostgresRepo;
@@ -35,12 +37,14 @@ async fn main() {
     let pg_pool = PostgresRepo::new(&cfg.database_url).await;
 
     let client_router = clients::app::router(pg_pool.clone());
-    let vendor_router = vendors::app::router(pg_pool);
+    let vendor_router = vendors::app::router(pg_pool.clone());
+    let sftp_router = sftp::app::router(pg_pool);
     let config_router = config::app::router(cfg);
     let health_router = health::app::router();
 
     let app = client_router
         .merge(vendor_router)
+        .merge(sftp_router)
         .merge(config_router)
         .merge(health_router)
         .layer(OtelInResponseLayer::default())

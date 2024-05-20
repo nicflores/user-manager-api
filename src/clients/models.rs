@@ -1,4 +1,10 @@
-use crate::{errors::models::AppError, postgres::pool::PostgresRepo, vendors::models::Vendor};
+use crate::{
+    errors::models::AppError,
+    postgres::pool::PostgresRepo,
+    sftp::models::{SftpResponse, SftpUpdate},
+    utils::ssh::SSHKeyPair,
+    vendors::models::Vendor,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -23,13 +29,15 @@ pub trait ClientRepo: Send + Sync + Clone + 'static {
     async fn get(&self, id: i64) -> Result<Option<Client>, AppError>;
     async fn update(&self, id: i64, client: Client) -> Result<(), AppError>;
     async fn delete(&self, id: i64) -> Result<(), AppError>;
-    async fn add_vendor_to_client(&self, client_id: i64, vendor: Vendor) -> Result<i64, AppError>;
+    async fn add_vendor(&self, client_id: i64, vendor: Vendor) -> Result<i64, AppError>;
     async fn update_vendor(
         &self,
         client_id: i64,
         vendor_id: i64,
         vendor: Vendor,
     ) -> Result<(), AppError>;
+    async fn add_sftp(&self, client_id: i64, sftp: SftpUpdate) -> Result<SftpResponse, AppError>;
+    async fn reset_keys(&self, client_id: i64) -> Result<SSHKeyPair, AppError>;
 }
 
 #[async_trait]
@@ -120,7 +128,7 @@ impl ClientRepo for PostgresRepo {
         }
     }
 
-    async fn add_vendor_to_client(&self, client_id: i64, vendor: Vendor) -> Result<i64, AppError> {
+    async fn add_vendor(&self, client_id: i64, vendor: Vendor) -> Result<i64, AppError> {
         // For some reason sqlx doesn't like SELECT 1.
         let client_exists: bool = sqlx::query!("SELECT * FROM clients WHERE id = $1", client_id)
             .fetch_optional(&self.pool)
@@ -171,6 +179,82 @@ impl ClientRepo for PostgresRepo {
             )))
         } else {
             Ok(())
+        }
+    }
+
+    async fn add_sftp(&self, client_id: i64, sftp: SftpUpdate) -> Result<SftpResponse, AppError> {
+        // For some reason sqlx doesn't like SELECT 1.
+        let client_exists: bool = sqlx::query!("SELECT * FROM clients WHERE id = $1", client_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .is_some();
+
+        if !client_exists {
+            return Err(AppError::NotFound(format!(
+                "Client with id {} not found",
+                client_id
+            )));
+        }
+
+        // Generate SSH key pair.
+        let ssh_keys = SSHKeyPair::new();
+
+        let sftp_id = sqlx::query!(
+            "INSERT INTO sftp (client_id, username, private_key, public_key, bucket_name, aws_role_arn) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            client_id,
+            sftp.username,
+            ssh_keys.private_key,
+            ssh_keys.public_key,
+            sftp.bucket_name,
+            sftp.aws_role_arn,
+        )
+        .fetch_one(&self.pool)
+        .await?
+        .id;
+
+        let response = SftpResponse {
+            id: sftp_id,
+            client_id,
+            private_key: ssh_keys.private_key,
+            public_key: ssh_keys.public_key,
+        };
+
+        Ok(response)
+    }
+
+    async fn reset_keys(&self, client_id: i64) -> Result<SSHKeyPair, AppError> {
+        let client_exists: bool = sqlx::query!("SELECT * FROM clients WHERE id = $1", client_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .is_some();
+
+        if !client_exists {
+            return Err(AppError::NotFound(format!(
+                "Client with id {} not found",
+                client_id
+            )));
+        }
+
+        // Generate SSH key pair.
+        let ssh_keys = SSHKeyPair::new();
+
+        let rows_affected = sqlx::query!(
+            "UPDATE sftp SET private_key = $1, public_key = $2 WHERE client_id = $3",
+            ssh_keys.private_key,
+            ssh_keys.public_key,
+            client_id,
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+
+        if rows_affected == 0 {
+            Err(AppError::NotFound(format!(
+                "SFTP keys for client with id {} not found",
+                client_id
+            )))
+        } else {
+            Ok(ssh_keys)
         }
     }
 }

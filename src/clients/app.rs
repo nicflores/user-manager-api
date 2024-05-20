@@ -1,7 +1,7 @@
 use super::{
     handlers::{
-        add_vendor_to_client, create_client, delete_client, get_client, get_clients, update_client,
-        update_vendor,
+        add_sftp, add_vendor_to_client, create_client, delete_client, get_client, get_clients,
+        reset_keys, update_client, update_vendor,
     },
     models::ClientRepo,
 };
@@ -19,5 +19,7 @@ pub fn router<T: ClientRepo>(repo: T) -> Router {
         .route("/clients/:id", delete(delete_client::<T>))
         .route("/clients/:id/vendor", post(add_vendor_to_client::<T>))
         .route("/clients/:id/vendor/:id", put(update_vendor::<T>))
+        .route("/clients/:id/sftp", post(add_sftp::<T>))
+        .route("/clients/:id/reset-sftp-keys", put(reset_keys::<T>))
         .with_state(repo)
 }

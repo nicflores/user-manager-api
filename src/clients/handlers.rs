@@ -1,5 +1,9 @@
 use super::models::{Client, ClientRepo};
-use crate::{errors::models::AppError, vendors::models::Vendor};
+use crate::{
+    errors::models::AppError,
+    sftp::models::{SftpResponse, SftpUpdate},
+    vendors::models::Vendor,
+};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -61,7 +65,7 @@ pub async fn add_vendor_to_client<T: ClientRepo>(
     Path(client_id): Path<i64>,
     Json(vendor): Json<Vendor>,
 ) -> Result<Json<i64>, AppError> {
-    let vendor_id = repo.add_vendor_to_client(client_id, vendor).await?;
+    let vendor_id = repo.add_vendor(client_id, vendor).await?;
     Ok(Json(vendor_id))
 }
 
@@ -71,5 +75,22 @@ pub async fn update_vendor<T: ClientRepo>(
     Json(vendor): Json<Vendor>,
 ) -> Result<(), AppError> {
     repo.update_vendor(client_id, vendor_id, vendor).await?;
+    Ok(())
+}
+
+pub async fn add_sftp<T: ClientRepo>(
+    State(repo): State<T>,
+    Path(client_id): Path<i64>,
+    Json(sftp): Json<SftpUpdate>,
+) -> Result<Json<SftpResponse>, AppError> {
+    let sftp_response = repo.add_sftp(client_id, sftp).await?;
+    Ok(Json(sftp_response))
+}
+
+pub async fn reset_keys<T: ClientRepo>(
+    State(repo): State<T>,
+    Path(client_id): Path<i64>,
+) -> Result<(), AppError> {
+    repo.reset_keys(client_id).await?;
     Ok(())
 }
