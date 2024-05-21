@@ -1,7 +1,6 @@
+use super::handlers::health;
 use axum::{routing::get, Router};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
-
-use super::handlers::health;
 
 /// The router for the health check endpoint.
 /// ```
